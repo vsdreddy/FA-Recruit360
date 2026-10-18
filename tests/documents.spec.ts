@@ -12,3 +12,10 @@ test('document library filters, reviews, uploads and isolates candidate records'
  await page.getByRole('button',{name:'Filters',exact:true}).click();await page.getByLabel('Document category').selectOption('Onboarding');await expect(page.locator('.doc-library tbody tr')).toHaveCount(2);
  await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+test('candidate Documents tab shows only the file library, without the workflow documents table',async({page})=>{
+ await page.goto('/candidates/001234');await page.getByRole('tab',{name:'Documents',exact:true}).click();
+ await expect(page.locator('.doc-library')).toBeVisible();
+ await expect(page.locator('.wf-documents')).toHaveCount(0);
+ await expect(page.getByRole('heading',{name:'Workflow documents'})).toHaveCount(0);
+});
