@@ -1,0 +1,70 @@
+import {test,expect} from '@playwright/test';
+
+test('list and kanban share filters and persisted status changes',async({page})=>{
+ await page.goto('/tasks');await page.getByRole('button',{name:'Filters',exact:true}).click();
+ await expect(page.locator('.tasks-table tbody tr')).toHaveCount(78);
+ await page.getByLabel('Filter task type').selectOption('Approval');
+ await expect(page.locator('.tasks-table tbody tr')).toHaveCount(15);
+ await page.getByRole('button',{name:'Kanban',exact:true}).click();
+ await expect(page.locator('.kanban-card')).toHaveCount(15);
+ await expect(page.getByRole('region',{name:'Awaiting Approval column'}).locator('.kanban-card')).toHaveCount(15);
+ await page.getByRole('button',{name:'Clear filters',exact:true}).click();
+ await page.getByLabel('Search tasks and approvals').fill('David Chen');
+ await expect(page.locator('.kanban-card')).toHaveCount(1);
+ await page.getByRole('button',{name:'List',exact:true}).click();
+ await expect(page.locator('.tasks-table tbody tr')).toHaveCount(1);
+ await page.getByLabel('Status for Follow up on fingerprint').selectOption('Completed');
+ await page.getByRole('button',{name:'Kanban',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Completed column'}).locator('.kanban-card')).toHaveCount(1);
+ await page.reload();await expect(page.getByRole('button',{name:'Kanban',exact:true})).toHaveAttribute('aria-pressed','true');
+ await expect(page.getByLabel('Status for Follow up on fingerprint')).toHaveValue('Completed');
+ const card=page.getByRole('article',{name:'Review contract',exact:true});
+ await card.dragTo(page.getByRole('region',{name:'Completed column'}).locator('.column-heading'));
+ await expect(page.getByRole('region',{name:'Completed column'}).getByRole('article',{name:'Review contract',exact:true})).toBeVisible();
+ await page.screenshot({path:'artifacts/tasks-kanban.png',fullPage:true});
+ await page.getByRole('button',{name:'List',exact:true}).click();await expect(page.getByLabel('Status for Review contract')).toHaveValue('Completed');
+ await page.screenshot({path:'artifacts/tasks-list.png',fullPage:true});
+});
+
+test('approval review and task notes persist; empty states and mobile board work',async({page})=>{
+ await page.goto('/tasks');await page.getByRole('button',{name:'Filters',exact:true}).click();
+ await page.getByRole('button',{name:'Approve advisor deal',exact:true}).click();
+ await page.getByLabel('Review notes').fill('Deal terms verified.');
+ await page.getByRole('button',{name:'Request Changes',exact:true}).click();
+ await expect(page.getByLabel('Status for Approve advisor deal')).toHaveValue('In Progress');
+ await page.getByRole('button',{name:'Approve advisor deal',exact:true}).click();
+ await expect(page.getByLabel('Review notes')).toHaveValue('Deal terms verified.');
+ await page.getByRole('button',{name:'Approve',exact:true}).click();
+ await expect(page.getByLabel('Status for Approve advisor deal')).toHaveValue('Completed');
+ await page.getByRole('button',{name:'Review contract',exact:true}).click();
+ await page.getByLabel('Task notes').fill('Contract reviewed with recruiter.');
+ await page.getByRole('button',{name:'Save Changes',exact:true}).click();
+ await page.reload();await page.getByRole('button',{name:'Review contract',exact:true}).click();
+ await expect(page.getByLabel('Task notes')).toHaveValue('Contract reviewed with recruiter.');
+ await page.getByRole('button',{name:'Close task details'}).click();
+ await page.getByRole('button',{name:'Filters',exact:true}).click();
+ await page.getByLabel('Search tasks and approvals').fill('no matching work item');
+ await expect(page.getByText('No tasks match your filters.')).toBeVisible();
+ await page.getByRole('button',{name:'Clear filters',exact:true}).click();
+ await page.getByLabel('Overdue only').check();await expect(page.locator('.tasks-table tbody tr')).toHaveCount(12);
+ await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Kanban',exact:true}).click();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+ await page.screenshot({path:'artifacts/tasks-mobile.png',fullPage:true});
+});
+
+test('consolidated toolbar keeps cards visible and filters accessible',async({page})=>{
+ await page.goto('/tasks');await page.getByRole('button',{name:'Kanban',exact:true}).click();
+ await expect(page.getByLabel('Filter task type')).toHaveCount(0);
+ await expect(page.locator('.tasks-summary,.board-toolbar,.board-quick-filters,.column-health')).toHaveCount(0);
+ expect((await page.locator('.kanban-card').first().boundingBox())!.y).toBeLessThan(360);
+ await page.screenshot({path:'artifacts/tasks-consolidated.png',fullPage:true});
+ await page.getByRole('button',{name:'Filters',exact:true}).click();await page.getByLabel('Filter task type').selectOption('Approval');await page.getByRole('button',{name:'Done',exact:true}).click();
+ await expect(page.locator('.kanban-card')).toHaveCount(15);await expect(page.getByLabel('Filter task type')).toHaveCount(0);
+ await page.locator('.active-task-filters button').filter({hasText:'Approval'}).click();await expect(page.locator('.kanban-card')).toHaveCount(78);
+ await page.getByRole('button',{name:'Filters',exact:true}).click();await page.getByLabel('Overdue only').check();await expect(page.locator('.kanban-card')).toHaveCount(12);
+ await page.getByRole('button',{name:'Clear filters',exact:true}).click();await page.getByLabel('Sort board').selectOption('Candidate');
+ const lane=page.getByRole('region',{name:'Not Started column'});const names=await lane.locator('.card-candidate').allTextContents();expect(names).toEqual([...names].sort((a,b)=>a.localeCompare(b)));
+ await page.getByLabel('Compact cards', {exact:true}).check();await expect(page.locator('.kanban-board')).toHaveClass(/compact-board/);await page.getByRole('button',{name:'Done',exact:true}).click();
+ await page.setViewportSize({width:390,height:844});expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);await page.screenshot({path:'artifacts/tasks-consolidated-mobile.png',fullPage:true});
+ await page.getByRole('button',{name:'Filters',exact:true}).click();await expect(page.getByLabel('Filter task owner')).toBeVisible();await page.getByLabel('Filter task owner').focus();await page.keyboard.press('Escape');await expect(page.getByLabel('Filter task owner')).toHaveCount(0);
+});

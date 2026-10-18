@@ -1,0 +1,58 @@
+import {test,expect} from '@playwright/test';
+test('comparison opens in a modal and restores grid focus on Escape',async({page})=>{
+ await page.goto('/candidates/001234/accounts');
+ const dialog=page.getByRole('dialog',{name:'Account comparison',exact:true});
+ await expect(dialog).not.toBeVisible();
+ const trigger=page.getByRole('button',{name:'Review account 7710',exact:true});
+ await trigger.click();
+ await expect(dialog).toBeVisible();
+ await expect(dialog.getByRole('heading',{name:/Patel household/})).toBeVisible();
+ await page.keyboard.press('Escape');
+ await expect(dialog).not.toBeVisible();
+ await expect(trigger).toBeFocused();
+ await page.getByRole('button',{name:'Review account 6502',exact:true}).click();
+ await expect(dialog.getByRole('heading',{name:/Chen family trust/})).toBeVisible();
+ await page.getByRole('button',{name:'Close comparison',exact:true}).click();
+ await expect(dialog).not.toBeVisible();
+});
+test('pre-registration dropdown navigates to account mappings and background verification',async({page})=>{
+ await page.goto('/candidates/001234');
+ await page.getByLabel('Pre-Registration options').click();
+ await expect(page.getByRole('link',{name:'Account mappings',exact:true})).toBeVisible();
+ await page.getByRole('link',{name:'Account mappings',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Account mappings',exact:true})).toBeVisible();
+ await page.goBack();
+ await page.getByLabel('Pre-Registration options').click();
+ await page.getByRole('link',{name:'Background verification',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Background verification',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Review background checklist'}).click();
+ await expect(page.getByRole('dialog',{name:'Background workflow'})).toBeVisible();
+});
+test('mock matching reconciles filtered counts and persists per candidate',async({page})=>{
+ await page.goto('/candidates/001234/accounts');
+ await page.getByRole('button',{name:'Run auto-match'}).click();
+ await expect(page.getByRole('button',{name:'Unmapped 0',exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Review 3',exact:true}).click();
+ await expect(page.locator('.mapping-grid tbody tr')).toHaveCount(3);
+ await page.getByLabel('Search mapped accounts').fill('Garcia');
+ await expect(page.locator('.mapping-grid tbody tr')).toHaveCount(1);
+ await page.reload();
+ await expect(page.getByRole('button',{name:'Run auto-match'})).toBeDisabled();
+ await page.goto('/candidates/001235/accounts');
+ await expect(page.getByRole('button',{name:'Run auto-match'})).toBeEnabled();
+});
+test('approval needs ready mapping and review evidence',async({page})=>{
+ await page.goto('/candidates/001234/accounts');
+ await page.getByRole('button',{name:'Review account 4821',exact:true}).click();
+ await page.getByRole('tab',{name:'Evidence & review'}).click();
+ await expect(page.getByRole('button',{name:'Approve mapping plan (mock)'})).toBeDisabled();
+ await page.getByRole('button',{name:'Close account comparison'}).click();
+ await page.getByRole('button',{name:'Review account 1934',exact:true}).click();
+ await page.getByRole('tab',{name:'Evidence & review'}).click();
+ await expect(page.getByRole('button',{name:'Approve mapping plan (mock)'})).toBeDisabled();
+ await page.getByLabel('Review note').fill('Reviewed the mock IRA registration and captured requirements.');
+ await page.getByRole('button',{name:'Approve mapping plan (mock)'}).click();
+ await expect(page.getByText('Mock mapping approval recorded')).toBeVisible();
+ await page.reload();
+ await expect(page.getByRole('button',{name:'Approved 1',exact:true})).toBeVisible();
+});
