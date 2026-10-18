@@ -42,6 +42,9 @@ export type Account = {
   /** Capabilities a reviewer has marked resolved (mock). Never set by auto-match. */
   resolved: CapKey[];
   approvedNote?: string;
+  /** When and in which file the candidate uploaded this account (mock). */
+  uploadedOn: string;
+  uploadFile: string;
 };
 
 type Config = { name: string; caps: Partial<Record<CapKey, { v: CapValue; text: string }>> };
@@ -204,6 +207,7 @@ const BENE = 'Collect new beneficiary form';
 export const mappingSeed: Account[] = [
   {
     id: 'a1', household: 'Anderson household', custodian: 'Merrill', last4: '4821', reg: 'joint', value: 820000, mapped: true, resolved: [],
+    uploadedOn: 'Oct 3, 2024', uploadFile: 'Merrill_Statement_Sep2024.pdf',
     needs: [
       need('holdings', 'Holdings eligibility', 'Listed stocks and ETFs', HOLD),
       need('estatements', 'Electronic statements', 'Enabled', 'Re-enroll in electronic delivery'),
@@ -219,6 +223,7 @@ export const mappingSeed: Account[] = [
   },
   {
     id: 'a2', household: 'Anderson household', custodian: 'Schwab', last4: '1934', reg: 'trad-ira', value: 460000, mapped: true, resolved: [],
+    uploadedOn: 'Oct 3, 2024', uploadFile: 'Schwab_IRA_Statement_Sep2024.pdf',
     needs: [
       need('holdings', 'Holdings eligibility', 'Stocks and ETFs', HOLD),
       need('beneficiary', 'Beneficiary requirements', 'Primary and contingent on file', BENE),
@@ -233,6 +238,7 @@ export const mappingSeed: Account[] = [
   },
   {
     id: 'a3', household: 'Patel household', custodian: 'Fidelity', last4: '7710', reg: 'individual', value: 310000, mapped: true, resolved: [],
+    uploadedOn: 'Oct 8, 2024', uploadFile: 'Fidelity_Statement_Sep2024.pdf',
     needs: [
       need('holdings', 'Holdings eligibility', 'Listed stocks', HOLD),
       need('online', 'Online access', 'Enabled', ONLINE),
@@ -248,6 +254,7 @@ export const mappingSeed: Account[] = [
   },
   {
     id: 'a4', household: 'Chen family trust', custodian: 'Pershing', last4: '6502', reg: 'trust', value: 1250000, mapped: true, resolved: [],
+    uploadedOn: 'Oct 8, 2024', uploadFile: 'Pershing_Trust_Statement_Sep2024.pdf',
     needs: [
       need('holdings', 'Holdings eligibility', 'Equities and ETFs', HOLD),
       need('trustee', 'Trustee authority', 'Amendment not provided', 'Obtain executed trust amendment and trustee certification', true, 'Trust amendment not in evidence'),
@@ -262,6 +269,7 @@ export const mappingSeed: Account[] = [
   },
   {
     id: 'a5', household: 'Williams household', custodian: 'Schwab', last4: '2048', reg: 'roth-ira', value: 185000, mapped: true, resolved: [],
+    uploadedOn: 'Oct 15, 2024', uploadFile: 'Schwab_Roth_Statement_Sep2024.pdf',
     needs: [
       need('holdings', 'Holdings eligibility', 'ETFs', HOLD),
       need('beneficiary', 'Beneficiary requirements', 'Primary on file', BENE),
@@ -274,6 +282,7 @@ export const mappingSeed: Account[] = [
   },
   {
     id: 'a6', household: 'Garcia household', custodian: 'E*TRADE', last4: '3982', reg: 'individual', value: 225000, mapped: false, resolved: [],
+    uploadedOn: 'Oct 15, 2024', uploadFile: 'ETRADE_Statement_Sep2024.pdf',
     needs: [
       need('holdings', 'Holdings eligibility', 'Listed stocks', HOLD),
       need('online', 'Online access', 'Enabled', ONLINE),
@@ -283,3 +292,35 @@ export const mappingSeed: Account[] = [
     evidence: [{ item: 'Latest account statement', state: 'Received' }],
   },
 ];
+
+const SURNAMES = ['Brooks', 'Nguyen', 'Foster', 'Ibrahim', 'Kowalski', 'Reyes', 'Sato', 'Whitfield', 'Okafor', 'Lindqvist', 'Moreau', 'Dalton'];
+
+/** The featured candidate (CND-2024-001234) uploaded the six reference accounts; others get a deterministic, distinct set. */
+export function accountsFor(candidateId: string): Account[] {
+  if (candidateId === '001234') return structuredClone(mappingSeed);
+  const h = [...candidateId].reduce((n, ch) => n + ch.charCodeAt(0), 0);
+  const count = 3 + (h % 4);
+  return Array.from({ length: count }, (_, i) => {
+    const base = mappingSeed[(i + h) % mappingSeed.length];
+    const surname = SURNAMES[(h + i * 5) % SURNAMES.length];
+    return {
+      ...structuredClone(base),
+      household: base.reg === 'trust' ? `${surname} family trust` : `${surname} household`,
+      last4: String(1000 + ((Number(base.last4) + h * 7) % 9000)),
+      value: Math.round((base.value * (0.6 + ((h + i) % 7) / 10)) / 5000) * 5000,
+    };
+  });
+}
+
+const KEY = 'recruit360-account-mappings-v2-';
+export function loadAccounts(candidateId: string): Account[] {
+  const fresh = accountsFor(candidateId);
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY + candidateId) || 'null');
+    if (Array.isArray(saved) && saved.length === fresh.length && saved.every((a, i) => a.id === fresh[i].id && Array.isArray(a.needs) && a.uploadedOn)) return saved;
+  } catch { /* fall through to seed */ }
+  return fresh;
+}
+export function saveAccounts(candidateId: string, accounts: Account[]) {
+  try { localStorage.setItem(KEY + candidateId, JSON.stringify(accounts)); } catch { /* storage unavailable */ }
+}

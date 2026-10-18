@@ -10,17 +10,17 @@ test('all metric tiles navigate to the matching candidate cohort and preserve fi
  }
  await expect(page.getByRole('columnheader',{name:'Cycle Days',exact:true})).toBeVisible();
  await page.getByRole('button',{name:'Clear tile filter'}).click();await expect(page.locator('.tile-filter')).toHaveCount(0);
- await page.goto('/candidates?tile=at-risk');await page.getByLabel('Search my hires').fill('David');await expect(page.locator('.hires tbody tr')).toHaveCount(1);
+ await page.goto('/candidates?tile=at-risk');await page.getByLabel('Search candidate table').fill('David');await expect(page.locator('.hires tbody tr')).toHaveCount(1);
  await page.getByRole('link',{name:'David Chen',exact:true}).click();await page.goBack();await expect(page.locator('.tile-filter b')).toHaveText('At Risk');
 });
 test('dashboard matches content, filters hires and navigates to profile',async({page})=>{
  const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/');await expect(page.getByRole('heading',{name:'Welcome back, John'})).toBeVisible();
+ await page.goto('/');await expect(page.getByRole('heading',{name:'Welcome back, Jennifer'})).toBeVisible();
  await expect(page.locator('.metric')).toHaveCount(8);
  await page.screenshot({path:'artifacts/dashboard.png',fullPage:true});
  await page.getByRole('button',{name:'Filters',exact:true}).click();await page.getByLabel('Filter status').selectOption('At Risk');
  await expect(page.locator('.hires tbody tr')).toHaveCount(2);
- await page.getByLabel('Search my hires').fill('David');await expect(page.locator('.hires tbody tr')).toHaveCount(1);
+ await page.getByLabel('Search candidate table').fill('David');await expect(page.locator('.hires tbody tr')).toHaveCount(1);
  await page.getByRole('link',{name:'David Chen',exact:true}).click();await expect(page.getByRole('heading',{name:'David Chen',exact:true})).toBeVisible();
  expect(errors).toEqual([]);
 });
@@ -31,11 +31,11 @@ test('candidate tabs, document review, edit persistence, and task completion',as
  await page.getByRole('button',{name:'View Task',exact:true}).click();await expect(page.getByRole('dialog',{name:'Pre-Registration workflow'})).toBeVisible();await expect(page.getByRole('button',{name:'Complete Stage & Continue'})).toBeDisabled();await page.getByLabel('Evidence note').fill('Verified CRD mock record');await page.getByRole('button',{name:'Complete mock task'}).first().click();await page.getByLabel('Close stage').click();await expect(page.getByRole('button',{name:'Pre-Registration: In Progress',exact:true})).toBeVisible();
 });
 test('create candidate and find through global search',async({page})=>{
- await page.goto('/');await page.getByRole('button',{name:'New Hire',exact:true}).click();await page.locator('input[name="name"]').fill('Alex Parker');await page.locator('input[name="firm"]').fill('Example Financial');await page.locator('input[name="manager"]').fill('Sarah Williams');await page.locator('input[name="start"]').fill('2025-02-10');await page.getByRole('button',{name:'Create Candidate'}).click();
+ await page.goto('/');await page.getByRole('button',{name:'New Candidate',exact:true}).click();await page.locator('input[name="name"]').fill('Alex Parker');await page.locator('input[name="firm"]').fill('Example Financial');await page.locator('input[name="manager"]').fill('Sarah Williams');await page.locator('input[name="start"]').fill('2025-02-10');await page.getByRole('button',{name:'Create Candidate'}).click();
  await page.getByLabel('Search candidates',{exact:true}).fill('Alex Parker');await page.locator('.search-results button').click();await expect(page.getByRole('heading',{name:'Alex Parker',exact:true})).toBeVisible();
 });
 test('mobile pages fit viewport and dialogs remain usable',async({page})=>{
- await page.setViewportSize({width:390,height:844});await page.goto('/');await expect(page.getByRole('heading',{name:'Welcome back, John'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);await page.screenshot({path:'artifacts/dashboard-mobile.png',fullPage:true});await page.goto('/candidates/001234');expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);await page.screenshot({path:'artifacts/candidate-mobile.png',fullPage:true});
+ await page.setViewportSize({width:390,height:844});await page.goto('/');await expect(page.getByRole('heading',{name:'Welcome back, Jennifer'})).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);await page.screenshot({path:'artifacts/dashboard-mobile.png',fullPage:true});await page.goto('/candidates/001234');expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);await page.screenshot({path:'artifacts/candidate-mobile.png',fullPage:true});
 });
 
 test('candidate KPI filters change cohorts and handle trailing slash links',async({page})=>{
@@ -43,8 +43,8 @@ test('candidate KPI filters change cohorts and handle trailing slash links',asyn
  await expect(page.locator('.hires tbody tr')).toHaveCount(18);
  await expect(page.locator('.candidate-kpis button[aria-pressed="true"]')).toHaveAccessibleName('At Risk');
  await expect(page.locator('.candidate-kpis strong').nth(0)).toHaveText('18');await expect(page.locator('.candidate-kpis strong').nth(4)).toHaveText('18');
- await page.getByLabel('Search my hires').fill('David');await expect(page.locator('.hires tbody tr')).toHaveCount(1);
- await page.locator('.candidate-kpis').getByRole('button',{name:'Expected Hires',exact:true}).click();await expect(page.locator('.hires tbody tr')).toHaveCount(28);await expect(page.getByLabel('Search my hires')).toHaveValue('');
+ await page.getByLabel('Search candidate table').fill('David');await expect(page.locator('.hires tbody tr')).toHaveCount(1);
+ await page.locator('.candidate-kpis').getByRole('button',{name:'Expected Hires',exact:true}).click();await expect(page.locator('.hires tbody tr')).toHaveCount(28);await expect(page.getByLabel('Search candidate table')).toHaveValue('');
  await page.reload();await expect(page.locator('.hires tbody tr')).toHaveCount(28);
  await page.getByRole('button',{name:'Filters',exact:true}).click();await page.locator('.candidate-kpis').getByRole('button',{name:'On Track',exact:true}).click();await expect(page.locator('.hires tbody tr')).toHaveCount(108);
  await page.goBack();await expect(page.locator('.hires tbody tr')).toHaveCount(28);
@@ -55,8 +55,8 @@ test('grid status bar follows filtering and selection',async({page})=>{
  await page.goto('/candidates?tile=at-risk');const footer=page.getByRole('status',{name:'Candidate grid status'});
  await expect(footer).toContainText('18 of 142 candidates');await expect(footer).toContainText('0 selected');
  await page.getByLabel('Select David Chen',{exact:true}).check();await expect(footer).toContainText('1 selected');
- await page.getByLabel('Search my hires').fill('David');await expect(footer).toContainText('1 of 142 candidates');await expect(footer).toContainText('Search: David');
- await page.getByLabel('Search my hires').fill('no such candidate');await expect(footer).toContainText('0 of 142 candidates');await expect(footer).toContainText('0 selected');
+ await page.getByLabel('Search candidate table').fill('David');await expect(footer).toContainText('1 of 142 candidates');await expect(footer).toContainText('Search: David');
+ await page.getByLabel('Search candidate table').fill('no such candidate');await expect(footer).toContainText('0 of 142 candidates');await expect(footer).toContainText('0 selected');
 });
 
 test('process steps filter the candidate grid and preserve selection on reload',async({page})=>{
@@ -76,14 +76,14 @@ test('process steps filter the candidate grid and preserve selection on reload',
 test('candidate chips reflect searched and stage-filtered grid rows',async({page})=>{
  await page.goto('/candidates');
  const steps=page.getByRole('group',{name:'Filter candidates by process step'});
- await page.getByLabel('Search my hires').fill('Sarah Mitchell');
+ await page.getByLabel('Search candidate table').fill('Sarah Mitchell');
  await expect(page.locator('.hires tbody tr')).toHaveCount(1);
  await expect(steps.getByRole('button',{name:'Contract',exact:true}).locator('strong')).toHaveText('1');
  await expect(steps.getByRole('button',{name:'Discovery',exact:true}).locator('strong')).toHaveText('0');
  await page.getByRole('button',{name:'Filters',exact:true}).click();
  await expect(page.locator('.candidate-kpis strong').nth(0)).toHaveText('1');
  await expect(page.locator('.candidate-kpis strong').nth(3)).toHaveText('100%');
- await page.getByLabel('Search my hires').fill('no match candidate');
+ await page.getByLabel('Search candidate table').fill('no match candidate');
  await expect(page.locator('.hires tbody tr')).toHaveCount(0);
  await expect(steps.locator('strong')).toHaveText(Array(11).fill('0'));
  await expect(page.locator('.candidate-kpis strong')).toHaveText(['0','0','0','0%','0','0','0','0 days']);
