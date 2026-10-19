@@ -124,3 +124,67 @@ test('pre-registration dropdown navigates to account mappings and background ver
   await page.getByRole('link', { name: 'Background verification', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Background verification', exact: true })).toBeVisible();
 });
+
+test('candidate Accounts tab lists every uploaded account and opens the comparison', async ({ page }) => {
+  await page.goto('/candidates/001234');
+  await page.getByRole('tab', { name: 'Accounts' }).click();
+  await expect(page.getByText('Accounts uploaded by Michael A. Thompson')).toBeVisible();
+  await expect(page.locator('.am-grid-tab tbody tr')).toHaveCount(6);
+  await expect(page.getByRole('status').filter({ hasText: '6 accounts' })).toContainText('$3,250,000');
+  await expect(page.locator('.am-grid-tab').getByText('Merrill_Statement_Sep2024.pdf')).toBeVisible();
+  await page.getByRole('link', { name: /Review Patel household/ }).click();
+  await expect(page).toHaveURL(/\/candidates\/001234\/accounts\?open=a3/);
+  await expect(dialog(page)).toBeVisible();
+  await expect(dialog(page).getByText('Patel household').first()).toBeVisible();
+});
+
+test('Accounts tab reflects approvals and differs per candidate', async ({ page }) => {
+  await page.goto('/candidates/001234/accounts');
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await page.getByRole('button', { name: 'Review account 1934', exact: true }).click();
+  await dialog(page).getByRole('tab', { name: /Evidence/ }).click();
+  await dialog(page).getByLabel(/Review note/).fill('Reviewed.');
+  await dialog(page).getByRole('button', { name: 'Approve mapping (mock)' }).click();
+  await page.goto('/candidates/001234');
+  await page.getByRole('tab', { name: 'Accounts' }).click();
+  await expect(page.locator('.am-tab-counts')).toContainText('Approved 1');
+  await page.goto('/candidates/001235');
+  await page.getByRole('tab', { name: 'Accounts' }).click();
+  await expect(page.getByText('Accounts uploaded by Sarah Mitchell')).toBeVisible();
+  await expect(page.locator('.am-grid-tab').getByText('Anderson household')).toHaveCount(0);
+});
+
+test('breadcrumbs link back to the candidate and the Pre-Registration stage', async ({ page }) => {
+  await page.goto('/candidates/001234/accounts');
+  const trail = page.getByRole('navigation', { name: 'Breadcrumb' });
+  await trail.getByRole('link', { name: 'Pre-Registration' }).click();
+  await expect(page).toHaveURL(/\/candidates\/001234\?stage=Pre-Registration/);
+  await expect(page.getByRole('dialog').or(page.locator('.drawer, aside[aria-label*="Pre-Registration"], [role=dialog]')).first()).toBeVisible();
+});
+
+test('shell is consistent: one header identity, no New Hire, /hires redirects, Reports is real', async ({ page }) => {
+  for (const path of ['/', '/candidates', '/tasks', '/reports', '/candidates/001234']) {
+    await page.goto(path);
+    await expect(page.locator('header .user')).toContainText('Jennifer Davis');
+    await expect(page.getByRole('button', { name: 'New Candidate', exact: true })).toBeVisible();
+    await expect(page.locator('header')).not.toContainText('Command Center');
+  }
+  await page.goto('/hires');
+  await expect(page).toHaveURL(/\/candidates$/);
+  await page.goto('/reports');
+  await expect(page.getByRole('heading', { name: 'Reports & Analytics', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'By stage' })).toBeVisible();
+  await page.getByLabel('Report division').selectOption('PCG');
+  await expect(page.getByRole('status').filter({ hasText: 'candidates in report' })).not.toContainText('142');
+  await page.goto('/process');
+  await expect(page.getByRole('heading', { name: 'Process Guide', level: 1 })).toBeVisible();
+});
+
+test('background verification and account mappings do not overflow on a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const path of ['/candidates/001234/background', '/candidates/001234/accounts', '/reports']) {
+    await page.goto(path);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  }
+});

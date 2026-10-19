@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import type { Candidate } from './data';
 import {
-  CATALOG, REG_LABEL, STATUSES, autoMatch, evaluate, mappingSeed, statusOf,
+  CATALOG, REG_LABEL, STATUSES, accountsFor, autoMatch, evaluate, loadAccounts, saveAccounts, statusOf,
   type Account, type Assessment, type CapKey, type MappingStatus, type RegKey,
 } from './mapping-data';
 import './account-mappings.css';
@@ -167,29 +167,23 @@ function Comparison({ account, update, close }: { account: Account; update: (fn:
   );
 }
 
-const KEY = 'recruit360-account-mappings-v2-';
-function load(id: string): Account[] {
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY + id) || 'null');
-    if (Array.isArray(saved) && saved.length === mappingSeed.length && saved.every((a, i) => a.id === mappingSeed[i].id && Array.isArray(a.needs))) return saved;
-  } catch { /* fall through to seed */ }
-  return structuredClone(mappingSeed);
-}
-
 export default function MappingWorkspace({ c, trail }: { c: Candidate; trail: ReactNode }) {
-  const [accounts, setAccounts] = useState<Account[]>(() => load(c.id));
+  const [accounts, setAccounts] = useState<Account[]>(() => loadAccounts(c.id));
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<MappingStatus | 'All'>('All');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [custodian, setCustodian] = useState('All');
   const [reg, setReg] = useState<RegKey | 'All'>('All');
   const [gapsOnly, setGapsOnly] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(() => {
+    const wanted = new URLSearchParams(window.location.search).get('open');
+    return accounts.some(a => a.id === wanted) ? wanted : null;
+  });
   const [banner, setBanner] = useState<{ title: string; lines: string[] } | null>(null);
   const [changed, setChanged] = useState<string[]>([]);
-  useEffect(() => { try { localStorage.setItem(KEY + c.id, JSON.stringify(accounts)); } catch { /* storage unavailable */ } }, [accounts, c.id]);
+  useEffect(() => saveAccounts(c.id, accounts), [accounts, c.id]);
 
-  const custodians = [...new Set(mappingSeed.map(a => a.custodian))];
+  const custodians = [...new Set(accounts.map(a => a.custodian))];
   const q = query.trim().toLowerCase();
   const cohort = accounts.filter(a =>
     (!q || [a.household, a.custodian, a.last4, REG_LABEL[a.reg], a.mapped ? CATALOG[a.reg].name : ''].join(' ').toLowerCase().includes(q)) &&
@@ -214,7 +208,7 @@ export default function MappingWorkspace({ c, trail }: { c: Candidate; trail: Re
     if (msg) setBanner({ title: msg, lines: [] });
   }, [openId]);
   const reset = () => {
-    setAccounts(structuredClone(mappingSeed)); setBanner({ title: 'Mapping demo reset to its starting data.', lines: [] });
+    setAccounts(accountsFor(c.id)); setBanner({ title: 'Mapping demo reset to its starting data.', lines: [] });
     setChanged([]); setStatus('All'); setQuery(''); setCustodian('All'); setReg('All'); setGapsOnly(false);
   };
   const openAccount = (a: Account) => setOpenId(a.id);
@@ -279,8 +273,8 @@ export default function MappingWorkspace({ c, trail }: { c: Candidate; trail: Re
                   <td className="am-mono">····{a.last4}</td>
                   <td>{REG_LABEL[a.reg]}</td>
                   <td className="r">{money(a.value)}</td>
-                  <td>{a.mapped ? CATALOG[a.reg].name : <span className="am-muted">Not yet matched</span>}</td>
-                  <td className="c am-mono">{a.mapped ? <span className={ev.matched === ev.total ? 'am-full' : ''}>{ev.matched}/{ev.total}</span> : '—'}</td>
+                  <td data-label="Proposed">{a.mapped ? CATALOG[a.reg].name : <span className="am-muted">Not yet matched</span>}</td>
+                  <td className="c am-mono" data-label="Matched">{a.mapped ? <span className={ev.matched === ev.total ? 'am-full' : ''}>{ev.matched}/{ev.total}</span> : '—'}</td>
                   <td><StatusPill status={s} /></td>
                   <td className="r"><button className="am-btn am-sm" aria-label={`Review account ${a.last4}`} onClick={() => openAccount(a)}>Review</button></td>
                 </tr>

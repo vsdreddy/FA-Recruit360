@@ -23,7 +23,6 @@ test('contract gates, shared tasks and documents, advance, persistence and reope
  await page.getByLabel('Close stage').click();
  await expect(page.getByRole('button',{name:'Pre-Registration: In Progress',exact:true})).toBeVisible();
  await page.reload();await expect(page.getByRole('button',{name:'Contract: Completed',exact:true})).toBeVisible();
- await page.getByRole('tab',{name:'Documents',exact:true}).click();
  await expect(page.locator('.wf-documents tr').filter({hasText:'Executed agreement'})).toContainText('Reviewed');
  await page.getByRole('button',{name:'Contract: Completed',exact:true}).click();
  await drawer.getByRole('button',{name:'Reopen stage'}).click();await expect(drawer.getByRole('alert')).toContainText('reason');
@@ -83,6 +82,7 @@ test('reviewing supporting files updates workflow evidence and reset restores th
  await page.getByRole('button',{name:'Upload for Review'}).click();
  await page.getByLabel('Review Pre-Reg Disclosure Form',{exact:true}).click();
  await page.getByRole('button',{name:'Mark Reviewed',exact:true}).click();await page.getByLabel('Close document details').click();
+ await page.getByRole('tab',{name:'Overview',exact:true}).click();
  await expect(page.locator('.wf-documents tr').filter({hasText:'Pre-Reg Disclosure Form'})).toContainText('Reviewed');
  await page.getByRole('button',{name:'Pre-Registration: In Progress',exact:true}).click();
  await expect(page.locator('.wf-requirement').filter({hasText:'Pre-Reg Disclosure Form'})).toContainText('Supporting file reviewed: disclosure.pdf');
